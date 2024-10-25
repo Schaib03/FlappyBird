@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+@font-face {
+    font-family: "Arcade Classic";
+    src: url(ARCADECLASSIC.TTF) format("truetype");
+}
+@font-face {
+    font-family: "Flappybirdy";
+    src: url(FlappybirdyRegular-KaBW.ttf) format("truetype");
+}
+
+@font-face {
+    font-family: "Flappybird";
+    src: url(flappy-bird-font.ttf) format("truetype");
+}
+
+body {
+    display: flex;
+    justify-content: space-evenly;
+    font-family: "Arcade Classic";
+    background-image: url(main_background.png);
+}
+canvas {
+    border:1px solid #d3d3d3;
+    background: url("flappy_bird_backdrop_by_lenaxux_dg34rsu.png");
+    /* background-repeat: no-repeat; */
+    background-size: cover;
+    /* width: 70vw;
+    height: 70vh; */
+    margin: auto;
+}
+button {
+  display: inline-block;
+  padding: 15px 25px;
+  font-size: 24px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  outline: none;
+  color: #fff;
+  background-color: #04AA6D;
+  border: none;
+  border-radius: 15px;
+  box-shadow: 0 9px #999;
+}
+
+button:hover {background-color: #3e8e41}
+
+button:active {
+  background-color: #3e8e41;
+  box-shadow: 0 5px #666;
+  transform: translateY(4px);
+}
+div {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0.8;
+    background: #282928;
+    z-index: 1;    
+}
+canvas {
+    z-index: 2;
+    opacity: 0.9;
+    border-radius: 8px;
+    border: #282928;
+}
+</style>
+</head>
+<body onload="startGame()"  onkeypress="jump(event)">
+<!-- <div class="leaderboard">
+    <h4>How to play</h4>
+    <p>
+        Click on the screen, or use your spacebar to get started. 
+        Fly the bird as far as you can without hitting a pipe.
+    </p>
+</div> -->
+<div>
+
+</div>
+<canvas  onclick="jump(event)"></canvas>
+<!-- <div class="help">
+    <h4>How to play</h4>
+    <p>
+        Click on the screen, or use your spacebar to get started. 
+        Fly the bird as far as you can without hitting a pipe.
+    </p>
+</div> -->
+<script>
+
+var myGamePiece;
+var myObstacles = [];
+var myScore;
+var mySound;
+var myMusic;
+var gameRunning = true, gameOver = false;
+var time = 0, t = 0;
+var floor;
+var highScore = 0;
+var lift = 50;
+var fade = -1;
+var opacity = 1;
+myMusic=new sound("happy-pop-2-185287.mp3")
+
+function startGame() {
+    floor = new component(960, 60, "floor.png", 0, 587, "image");
+    myGamePiece = new component(50, 37, "Layer_1.png", 200, 300, "image");
+    myGamePiece.gravity = 0.2;
+    myScore = new component("40px", "Flappybird", "black", 130, -20, "text");
+    myGameArea.start();
+    mySound= new sound("we.mp3");
+    myRestartText = new component("20px", "Arcade Classic", "white", 200, 440, "text");
+    myRestartButton = new component(100, 30, "#ea6c12", 190, 420, "white");
+    myScoreBoard = new component(150, 200, "#ded895", 165, 200, "#543847");
+    myScoreText = new component("20px", "Arcade Classic", "white", 175, 440, "text");
+    console.log("gamestarted");
+    myGameArea.interval = setInterval(updateGameAreaStatic, 1);
+    // myGameArea.interval = setInterval(updateGameArea, 16); 
+}
+
+function restartGame()
+{
+    myScore.width = "40px";
+    myScore.score = 0;
+    lift = 70;
+    fade = -1;
+    myGamePiece.x = 200;
+    myGamePiece.y = 300;
+    myGameArea.frameNo = 0;
+    l = myObstacles.length;
+    for (let i = 0; i < l; i++)
+    {
+        delete myObstacles[i];
+    };
+    myObstacles = [];
+    gameRunning = true;
+    console.log("gamerestarted");
+}
+
+var myGameArea = {
+    canvas : document.querySelector("canvas"),
+    start : function() {
+        this.canvas.width = 480;
+        this.canvas.height = 640;
+        this.context = this.canvas.getContext("2d");
+        // document.body.insertBefore(this.canvas, document.body.childNodes[1]);
+        this.frameNo = 0;
+        updateGameArea();
+    },
+    stop : function() {
+        clearInterval(this.interval);
+    },          
+    clear : function() {
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+}
+
+function component(width, height, color, x, y, type) {
+    if (type == "image") {
+        this.image = new Image();
+        this.image.src = color;;
+    }
+    this.type = type;
+    this.score = 0;
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;    
+    this.color = color;
+    this.x = x;
+    this.y = y;
+    this.gravity = 0;
+    this.gravitySpeed = 0;
+    this.update = function() {
+        ctx = myGameArea.context;
+        if (this.type == "text") {
+            ctx.font = this.width + " " + this.height;
+            ctx.fillStyle = this.color;
+            ctx.fillText(this.text, this.x, this.y);
+        } 
+        else if (type == "image") 
+        {
+            ctx.drawImage (
+                this.image, 
+                this.x, 
+                this.y,
+                this.width, this.height
+            );
+            
+        } 
+        else
+        {
+            ctx.fillStyle = type;
+            ctx.fillRect(this.x - 3, this.y - 3, this.width + 6, this.height + 6);
+            ctx.fillStyle = color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+    }
+    this.newPos = function() {
+        this.gravitySpeed = this.gravity;
+        this.gravity += 1;
+        if (this.gravity > 0) { this.gravity = 0 };
+        this.y += 8 + this.gravity;
+        this.hitTop();
+    }
+    this.hitBottom = function() {
+        var rockbottom = myGameArea.canvas.height - floor.height;
+        if (this.y > rockbottom) {
+            return true;
+        };
+        return false;
+    }
+    this.hitTop = function() {
+        var skytop = -myGameArea.canvas.height / 10;
+        if (this.y < skytop) {
+            this.y = skytop;
+            this.gravitySpeed = 0;
+        }
+    }
+    this.crashWith = function(otherobj) {
+        var myleft = this.x;
+        var myright = this.x + (this.width);
+        var mytop = this.y;
+        var mybottom = this.y + (this.height);
+        var otherleft = otherobj.x;
+        var otherright = otherobj.x + (otherobj.width);
+        var othertop = otherobj.y;
+        var otherbottom = otherobj.y + (otherobj.height);
+        var crash = true;
+        if ((mybottom < othertop) || (mytop > otherbottom - 3) || (myright < otherleft + 3) || (myleft > otherright - 3)) {
+            crash = false;
+        };
+        return crash;
+    }
+}
+
+function updateGameAreaStatic()
+{
+    myGameArea.clear();
+    floor.x -= 6;
+    if (floor.x < -480) { floor.x = 0; };
+    floor.update();
+    t += 0.08;
+    myGamePiece.y += 4*Math.sin(t);
+    myGamePiece.update();
+    if (t < 5)
+    {
+        myScore.width = "80px";
+        myScore.text = "Flappy bird";
+        myScore.height = "Flappybirdy";
+        myScore.y += 2;
+    }
+    else if (t > 10 && t < 15)
+    {
+        myScore.y -= 2;
+    }
+    else if (t > 20 && t < 25)
+    {
+        myScore.width = "40px";
+        myScore.text = "Tap to start";
+        myScore.height = "Arcade classic";
+        myScore.y += 2;
+    }
+    else if (t > 25 && Math.floor(t) % 4 == 0)
+    {
+        myScore.text = "";
+    }
+    else if (t > 25)
+    {
+        myScore.text = "Tap to start";
+    };
+    
+    myScore.update();
+}
+
+function stopGame()
+{
+    myGameArea.clear();
+    gameRunning = false;
+    for (i = 0; i < myObstacles.length; i++) {
+            myObstacles[i].update();
+    };
+    floor.update();
+    opacity += 0.05 * fade;
+    myGameArea.canvas.style.opacity = opacity;
+
+    console.log("opacity; " + opacity );
+    if (opacity < 0.5)
+    {
+        fade = 1;
+    }
+    else if (opacity > 0.99)
+    {
+        fade = 0;
+    };
+    if (myGamePiece.y < myGameArea.canvas.height - floor.height) 
+    { 
+        myGamePiece.y += 20;
+    }
+    if (lift < 0)
+    {
+        lift = 0;
+    }
+    if (lift == 0 && myGamePiece.y >= myGameArea.canvas.height - floor.height && fade == 0)
+    {
+        myObstacles = [];
+        gameOver = true;
+        myGameArea.stop();
+    };
+    floor.update();
+    myGamePiece.update();
+    myScoreBoard.y = 200 + lift;
+    myScoreBoard.update();
+    myRestartButton.y = 420 + lift;
+    myRestartButton.update();
+    myRestartText.text = "RESTART";
+    myRestartText.y = 440 + lift;
+    myRestartText.update();
+    myScore.width = "30px";
+    myScore.y = 240 + lift;
+    myScore.x -= 30;
+    myScore.height = "Arcade classic";
+    myScore.color = "#ea6c12"
+    myScore.text = "SCORE";
+    myScore.update();
+    myScore.y = 330 + lift;
+    myScore.x += 5;
+    myScore.text = "HIGH";
+    myScore.update();
+    myScore.y = 290 + lift;
+    myScore.x += 24;
+    myScore.color = "black";
+    myScore.height = "Flappybird";
+    myScore.text = myScore.score;
+    myScore.update();
+    myScore.y = 375 + lift;
+    highScore = Math.max(myScore.score, highScore);
+    myScore.text = highScore;
+    myScore.update();
+    myScore.x++;
+    lift -= 5;
+
+}
+
+function updateGameArea() {
+    if (gameRunning)
+    {
+        time += 0.2;
+        var x, height, gap, minHeight, maxHeight, minGap, maxGap;
+
+        myGameArea.clear();
+        myGameArea.frameNo += 1;
+        myGamePiece.newPos();
+        myGamePiece.image.src = `Layer_${Math.ceil(time) % 8 + 1}.png`;
+        myGamePiece.update();
+        if (myGameArea.frameNo == 1 || everyinterval(100)) {
+            x = myGameArea.canvas.width;
+            minHeight = 100;
+            maxHeight = 250;
+            height = Math.floor(Math.random()*(maxHeight-minHeight+1)+minHeight);
+            minGap = 150;
+            maxGap = 200;
+            gap = Math.floor(Math.random()*(maxGap-minGap+1)+minGap);
+            myObstacles.push(new component(90, 630, "mario_pipe_inverted.png", x, height - 630, "image"));
+            myObstacles.push(new component(90, 630, "mario_pipe_normal.png", x, height + gap, "image"));
+        }
+        for (i = 0; i < myObstacles.length; i++) {
+            myObstacles[i].x -= 3;
+            myObstacles[i].update();
+        }
+        myScore.score = (myObstacles.length > 1) ? (myObstacles.length / 2 - 1) : 0;
+        myScore.text = "" + myScore.score;
+    }
+    else
+    {
+        stopGame();
+        return;
+    };
+
+    if (myGamePiece.hitBottom())
+    {
+        mySound.play();
+        stopGame();
+        return;
+    }
+    for (i = 0; i < myObstacles.length; i++) {
+        if (myGamePiece.crashWith(myObstacles[i])) {
+            mySound.play();
+            stopGame();
+            return;
+        };
+    }
+
+    if (gameRunning)
+    {
+        myScore.update();
+        floor.x -= 3;
+        if (floor.x < -480) { floor.x = 0; };
+        floor.update();
+    }
+
+}
+
+function everyinterval(n) {
+    if ((myGameArea.frameNo / n) % 1 == 0) {return true;}
+    return false;
+}
+
+function sound(src) {
+    this.sound = document.createElement("audio");
+    this.sound.src = src;
+    this.sound.setAttribute("preload", "auto");
+    this.sound.setAttribute("controls", "none");
+    this.sound.style.display = "none";
+    document.body.appendChild(this.sound);
+    this.play = function(){
+        this.sound.play();
+    }
+    this.stop = function(){
+        this.sound.pause();
+    }    
+}
+
+function accelerate(n) {
+
+    myGamePiece.gravity = n;
+}
+
+function getMouseCanvasPosition(event)
+{
+    var rect = myGameArea.canvas.getBoundingClientRect();
+    var scaleX = (myGameArea.canvas.width / rect.width);
+    var scaleY = (myGameArea.canvas.height / rect.height);
+    return {
+        x: (event.clientX - rect.left) * scaleX,
+        y: (event.clientY - rect.top) * scaleY
+    };
+}
+
+function jump(event)
+{
+    if (!(event.type === "click" && event.button === 0) && !(event.type === "keypress" && event.key === " ")) { return; };
+    myMusic.play();
+    if (gameRunning == true && gameOver == false) { 
+        myGameArea.stop();
+        myGameArea.interval = setInterval(updateGameArea, 16); 
+        gameRunning = true;
+        console.log("startinggame");
+        myScore.height = "Flappybird";
+        myScore.x = 230;
+        myScore.y = 160;
+        myScore.width = "40px";
+        accelerate(-22);
+        return;
+    }
+    var mouseX = getMouseCanvasPosition(event).x;
+    var mouseY = getMouseCanvasPosition(event).y;
+    console.log("passed retrieving phase");
+    if (gameRunning == false && gameOver == true && mouseX < myRestartButton.x + myRestartButton.width &&
+    mouseX > myRestartButton.x && mouseY > myRestartButton.y && mouseY < myRestartButton.y + myRestartButton.height )
+    {
+        myGameArea.stop();
+        myScore.x = 140;
+        myScore.y = -30;
+        gameOver = false;
+        restartGame();
+        t = 0;
+        myGameArea.interval = setInterval(updateGameAreaStatic, 16);
+        return;
+    };
+    time = 0;
+    accelerate(-22);
+}
+
+
+</script>
+<br>
+</body>
+</html>
